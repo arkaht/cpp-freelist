@@ -28,6 +28,38 @@ void Application::update( float dt )
 		clear();
 	}
 
+	if ( IsKeyPressed( KEY_H ) )
+	{
+		auto entity = allocate<ExpensiveEntity>();
+		if ( entity == nullptr ) 
+		{
+			printf( "Failed to allocate a new ExpensiveEntity!\n" );
+			return;
+		}
+
+		entity->color = RED;
+		entity->is_alive = true;
+		entity->pos = { 10.0f, -5.0f };
+		entity->size = { 2.0f, 1.0f };
+
+		printf( "Allocated a new ExpensiveEntity!\n" );
+	}
+	else if ( IsKeyPressed( KEY_J ) )
+	{
+		auto entity = allocate<CheaperEntity>();
+		if ( entity == nullptr ) 
+		{
+			printf( "Failed to allocate a new CheaperEntity!\n" );
+			return;
+		}
+
+		entity->color = RED;
+		entity->pos = { 10.0f, -5.0f };
+		entity->size = { 2.0f, 1.0f };
+
+		printf( "Allocated a new CheaperEntity!\n" );
+	}
+
 	//  User click on allocations
 	for ( int i = 0; i < _allocs.size(); i++ )
 	{
@@ -72,7 +104,7 @@ void Application::render()
 	if ( !show_only_user_data )
 	{
 		const Rectangle region = _create_memory_region_rect( 0, nodes_size );
-		_draw_memory_region( region, nodes_size, font_size, spacing, BLUE );
+		_draw_memory_region( region, utils::bytes_to_str( nodes_size ), font_size, spacing, BLUE );
 
 		_draw_memory_region_label( region, "Internal Size" );
 
@@ -86,23 +118,8 @@ void Application::render()
 	while( node )
 	{
 		const Rectangle region = _create_memory_region_rect( mem_offset + node->offset, node->size );
-		_draw_memory_region( region, node->size, font_size, spacing, GREEN );
-
-		//  Draw head asterisk
-		if ( node == head )
-		{
-			draw_text( 
-				"*", 
-				Vector2 { 
-					region.x + region.height * 0.5f,
-					region.y + region.height * 0.5f 
-				}, 
-				Vector2 { 0.5f, 0.5f },
-				font_size,
-				spacing,
-				WHITE
-			);
-		}
+		const char* text = TextFormat( "%s%s", node == head ? "*" : "", utils::bytes_to_str( node->size ) );
+		_draw_memory_region( region, text, font_size, spacing, GREEN );
 
 		index++;
 		node = node->next;
@@ -116,14 +133,14 @@ void Application::render()
 	{
 		const Allocation& alloc = _allocs[i];
 
-		Rectangle region = _create_memory_region_rect( alloc.offset, alloc.size );
+		Rectangle region = _create_memory_region_rect( mem_offset + alloc.offset, alloc.size );
 
 		bool is_hovered = CheckCollisionPointRec( GetMousePosition(), region );
-		_draw_memory_region( region, alloc.size, font_size, spacing, is_hovered ? PURPLE : VIOLET );
+		_draw_memory_region( region, utils::bytes_to_str( alloc.size ), font_size, spacing, is_hovered ? PURPLE : VIOLET );
 	}
 
 	draw_text( 
-		TextFormat( "NODES: %i", index ), 
+		TextFormat( "%i NODES", index ), 
 		Vector2 {
 			_total_memory_rect.x,
 			_total_memory_rect.y + _total_memory_rect.height,
@@ -135,16 +152,18 @@ void Application::render()
 	);
 }
 
-void Application::allocate( size_t size )
+int Application::allocate( size_t size )
 {
 	auto offset = _freelist.allocate( size );
-	if ( offset == -1 ) return;
+	if ( offset == -1 ) return -1;
 
 	Allocation alloc {};
 	alloc.data = _freelist.pointer_to_memory( offset );
 	alloc.offset = offset;
 	alloc.size = size;
 	_allocs.push_back( alloc );
+
+	return _allocs.size() - 1;
 }
 
 void Application::deallocate( int id )
@@ -160,9 +179,12 @@ void Application::clear()
 	_allocs.clear();
 }
 
-void Application::draw_text( const char* text, Vector2 pos, Vector2 origin, float font_size, float spacing, Color color )
+void Application::draw_text( const char* text, Vector2 pos, Vector2 origin, float font_size, float spacing, Color color, float min_width )
 {
 	Vector2 text_size = MeasureTextEx( _font, text, font_size, spacing );
+
+	//  Hides text if below minimum width
+	if ( min_width > 0 && text_size.x > min_width ) return;
 
 	DrawTextEx( 
 		_font, 
@@ -188,14 +210,14 @@ Rectangle Application::_create_memory_region_rect( uint32_t offset, uint32_t byt
 	return memory_rect;
 }
 
-void Application::_draw_memory_region( const Rectangle& region, uint32_t bytes, float font_size, float spacing, Color color )
+void Application::_draw_memory_region( const Rectangle& region, const char* text, float font_size, float spacing, Color color )
 {
 	//  Draw memory region
 	DrawRectangleRec( region, color );
 
 	//  Draw text
 	draw_text(
-		utils::bytes_to_str( bytes ),
+		text,
 		Vector2 {
 			region.x + region.width * 0.5f,
 			region.y + region.height * 0.5f,
@@ -203,7 +225,8 @@ void Application::_draw_memory_region( const Rectangle& region, uint32_t bytes, 
 		Vector2 { 0.5f, 0.5f },
 		font_size,
 		spacing,
-		WHITE
+		WHITE,
+		region.width
 	);
 }
 
