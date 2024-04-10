@@ -85,7 +85,7 @@ void Application::render()
 	_total_memory_rect.width = _frame.width * 0.75f;
 	_total_memory_rect.height = _frame.height * 0.06f;
 	_total_memory_rect.x = _frame.width * 0.5f - _total_memory_rect.width * 0.5f;
-	_total_memory_rect.y = _frame.height * 0.5f - _total_memory_rect.height * 0.5f;
+	_total_memory_rect.y = _frame.height * 0.575f - _total_memory_rect.height * 0.5f;
 	DrawRectangleRec( _total_memory_rect, LIGHTGRAY );
 
 	const int data_size = _freelist.get_data_size();
@@ -93,6 +93,19 @@ void Application::render()
 	const int internal_size = _freelist.get_internal_size();
 
 	_total_size = (float)( show_only_user_data ? data_size : total_size );
+
+	//  Draw title text
+	draw_text( 
+		"FREELIST",
+		Vector2 {
+			_frame.width * 0.5f,
+			_frame.height * 0.325f,
+		},
+		Vector2 { 0.5f, 0.5f },
+		128.0f,
+		16.0f,
+		LIGHTGRAY
+	);
 
 	const float font_size = 18.0f;
 	const float spacing = 1.0f;
