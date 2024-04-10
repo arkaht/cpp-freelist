@@ -166,6 +166,48 @@ void Freelist::deallocate( uint32_t offset, size_t size )
 	}
 }
 
+void Freelist::clear()
+{
+	//  Zero out user data memory
+	memset( pointer_to_memory( 0 ), 0, _data_size );
+
+	//  Reset nodes
+	FreelistNode* node = _head;
+	while ( node )
+	{
+		auto next = node->next;
+
+		node->size = 0;
+		node->offset = 0;
+		node->next = nullptr;
+
+		node = next;
+	}
+
+	if ( !_head )
+	{
+		_head = _new_node( 0, _data_size );
+	}
+	else
+	{
+		_head->size = _data_size;
+	}
+}
+
+void* Freelist::pointer_to_memory( uint32_t offset, bool add_internal_size ) const
+{
+	if ( offset <= 0 ) return nullptr;
+
+	auto ptr = (char*)_memory;
+
+	if ( add_internal_size )
+	{
+		ptr = ptr + _internal_size;
+	}
+
+	return ptr + offset;
+}
+
 FreelistNode* Freelist::head() const
 {
 	return _head;
@@ -200,7 +242,7 @@ int Freelist::get_free_size() const
 	return bytes;
 }
 
-FreelistNode* Freelist::_new_node( uint32_t offset, uint32_t size ) const
+FreelistNode* Freelist::_new_node( uint32_t offset, uint32_t size )
 {
 	for ( int i = 0; i < _node_count; i++ )
 	{
@@ -215,44 +257,4 @@ FreelistNode* Freelist::_new_node( uint32_t offset, uint32_t size ) const
 	}
 
 	return nullptr;
-}
-
-void* Freelist::pointer_to_memory( uint32_t offset, bool add_internal_size ) const
-{
-	auto ptr = (char*)_memory;
-
-	if ( add_internal_size )
-	{
-		ptr = ptr + _internal_size;
-	}
-
-	return ptr + offset;
-}
-
-void Freelist::clear()
-{
-	//  Zero out user data memory
-	memset( pointer_to_memory( 0 ), 0, _data_size );
-
-	//  Reset nodes
-	FreelistNode* node = _head;
-	while ( node )
-	{
-		auto next = node->next;
-
-		node->size = 0;
-		node->offset = 0;
-		node->next = nullptr;
-
-		node = next;
-	}
-
-	if ( !_head )
-	{
-		_head = _new_node( 0, _data_size );
-	}
-	else
-	{
-		_head->size = _data_size;
-	}
 }
