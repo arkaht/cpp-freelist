@@ -1,6 +1,7 @@
 #include "application.h"
 
 #include "utils.h"
+#include "benchmark.h"
 #include <stdio.h>
 
 Application::Application( const Rectangle& frame )
@@ -8,6 +9,38 @@ Application::Application( const Rectangle& frame )
 	 _freelist( 2048 )
 {
 	_font = GetFontDefault();
+
+	if ( ENABLE_BENCHMARKS )
+	{
+		Benchmark benchmark;
+
+		//  Benchmarking the new/delete operations
+		benchmark.Start();
+		for ( int i = 0; i < BENCHMARK_ITERATIONS; i++ )
+		{
+			auto entity = new ExpensiveEntity();
+			entity->is_alive = false;
+			delete entity;
+		}
+		benchmark.Stop();
+		printf( "Benchmark: new(): %.3f seconds for a total of %d iterations\n", benchmark.GetSeconds(), BENCHMARK_ITERATIONS );
+
+		//  Benchmarking the freelist allocate/free operations
+		benchmark.Start();
+		for ( int i = 0; i < BENCHMARK_ITERATIONS; i++ )
+		{
+			uint32_t size = sizeof( ExpensiveEntity );
+			uint32_t offset;
+			if ( _freelist.allocate( size, offset ) )
+			{
+				auto entity = (ExpensiveEntity*)_freelist.pointer_to_memory( offset );
+				entity->is_alive = false;
+				_freelist.free( offset, size );
+			}
+		}
+		benchmark.Stop();
+		printf( "Benchmark: freelist: %.3f seconds for a total of %d iterations\n", benchmark.GetSeconds(), BENCHMARK_ITERATIONS );
+	}
 }
 
 void Application::update( float dt )

@@ -78,6 +78,9 @@ private:
 	);
 
 private:
+	const bool  ENABLE_BENCHMARKS = false;
+	const int   BENCHMARK_ITERATIONS = 1000000;
+
 	const float MEMORY_RECT_PADDING = 4.0f;
 
 	const float MEMORY_REGION_LABEL_FONT_SIZE = 20.0f;
