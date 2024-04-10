@@ -90,11 +90,11 @@ void Application::render()
 	_total_memory_rect.y = _frame.height * 0.5f - _total_memory_rect.height * 0.5f;
 	DrawRectangleRec( _total_memory_rect, LIGHTGRAY );
 
-	const float data_size = (float)_freelist.get_data_size();
-	const float total_size = (float)_freelist.get_total_size();
-	const float nodes_size = total_size - data_size;
+	const int data_size = _freelist.get_data_size();
+	const int total_size = _freelist.get_total_size();
+	const int nodes_size = total_size - data_size;
 
-	_total_size = show_only_user_data ? data_size : total_size;
+	_total_size = (float)( show_only_user_data ? data_size : total_size );
 
 	const float font_size = 18.0f;
 	const float spacing = 1.0f;
@@ -152,7 +152,7 @@ void Application::render()
 	);
 }
 
-int Application::allocate( size_t size )
+int Application::allocate( uint32_t size )
 {
 	auto offset = _freelist.allocate( size );
 	if ( offset == -1 ) return -1;
@@ -163,7 +163,7 @@ int Application::allocate( size_t size )
 	alloc.size = size;
 	_allocs.push_back( alloc );
 
-	return _allocs.size() - 1;
+	return (int)_allocs.size() - 1;
 }
 
 void Application::deallocate( int id )
@@ -232,27 +232,27 @@ void Application::_draw_memory_region( const Rectangle& region, const char* text
 
 void Application::_draw_memory_region_label( const Rectangle& region, const char* text )
 {
-	const float height_offset = 30.0f;
-	const float height = 10.0f;
-	const float thickness = 4.0f;
+	const int height_offset = 30;
+	const int height = 10;
+	const int thickness = 4;
 
 	DrawRectangle(
-		region.x,
-		region.y - height_offset,
-		region.width,
+		(int)region.x,
+		(int)region.y - height_offset,
+		(int)region.width,
 		thickness,
 		GRAY
 	);
 	DrawRectangle(
-		region.x,
-		region.y - height_offset,
+		(int)region.x,
+		(int)region.y - height_offset,
 		thickness,
 		height,
 		GRAY
 	);
 	DrawRectangle(
-		region.x + region.width - thickness,
-		region.y - height_offset,
+		(int)region.x + (int)region.width - thickness,
+		(int)region.y - height_offset,
 		thickness,
 		height,
 		GRAY

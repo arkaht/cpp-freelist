@@ -54,7 +54,7 @@ public:
 
 		return (T*)_allocs[id].data;
 	}
-	int allocate( size_t size );
+	int allocate( uint32_t size );
 	void deallocate( int id );
 	void clear();
 

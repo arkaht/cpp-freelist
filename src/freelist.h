@@ -13,18 +13,18 @@ struct FreelistNode
 class Freelist
 {
 public:
-	Freelist( size_t data_size );
+	Freelist( uint32_t data_size );
 	~Freelist();
 
 	/*
 	 * Finds and allocates a data region for the given size.
 	 * Returns the offset in the user data memory or -1 if there was no available space.
 	 */
-	uint32_t allocate( size_t size );
+	uint32_t allocate( uint32_t size );
 	/*
 	 * Deallocate the data region at given offset and size.
 	 */
-	void deallocate( uint32_t offset, size_t size );
+	void deallocate( uint32_t offset, uint32_t size );
 	/*
 	 * Clear the freelist of all allocations and reset its nodes.
 	 */
@@ -61,12 +61,12 @@ public:
 	int get_free_size() const;
 
 private:
-	FreelistNode* _new_node( uint32_t offset = 0, uint32_t size = 0 );
+	FreelistNode* _new_node( uint32_t offset = 0, size_t size = 0 );
 
 private:
-	int _data_size = 0;
-	int _total_size = 0;
-	int _internal_size = 0;
+	uint32_t _data_size = 0;
+	uint32_t _total_size = 0;
+	uint32_t _internal_size = 0;
 	int _node_count = 0;
 
 	FreelistNode* _head = nullptr;

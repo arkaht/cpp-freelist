@@ -6,7 +6,7 @@
 
 #include "utils.h"
 
-Freelist::Freelist( size_t data_size )
+Freelist::Freelist( uint32_t data_size )
 {
 	_data_size = data_size;
 
@@ -44,7 +44,7 @@ Freelist::~Freelist()
 	_memory = nullptr;
 }
 
-uint32_t Freelist::allocate( size_t size )
+uint32_t Freelist::allocate( uint32_t size )
 {
 	FreelistNode* previous = nullptr;
 	FreelistNode* node = _head;
@@ -89,7 +89,7 @@ uint32_t Freelist::allocate( size_t size )
 	return -1;
 }
 
-void Freelist::deallocate( uint32_t offset, size_t size )
+void Freelist::deallocate( uint32_t offset, uint32_t size )
 {
 	//  Zero out memory
 	memset( pointer_to_memory( offset ), 0, size );
@@ -244,7 +244,7 @@ int Freelist::get_free_size() const
 	return bytes;
 }
 
-FreelistNode* Freelist::_new_node( uint32_t offset, uint32_t size )
+FreelistNode* Freelist::_new_node( uint32_t offset, size_t size )
 {
 	for ( int i = 0; i < _node_count; i++ )
 	{
