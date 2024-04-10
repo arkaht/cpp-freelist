@@ -62,12 +62,14 @@ uint32_t Freelist::allocate( size_t size )
 				_head = node->next;
 			}
 
+			int offset = node->offset;
+
 			//  Invalidate node
 			node->offset = 0;
 			node->size = 0;
 			node->next = nullptr;
 
-			return node->offset;
+			return offset;
 		}
 		else if ( node->size > size )
 		{
