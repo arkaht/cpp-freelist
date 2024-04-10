@@ -28,7 +28,7 @@ public:
 	void draw_text( const char* text, Vector2 pos, Vector2 origin, float font_size, float spacing, Color color );
 
 public:
-	bool show_only_user_data = true;
+	bool show_only_user_data = false;
 
 private:
 	Rectangle _create_memory_region_rect( uint32_t offset, uint32_t bytes ) const;
@@ -39,9 +39,16 @@ private:
 		float spacing,
 		Color color
 	);
+	void _draw_memory_region_label(
+		const Rectangle& region,
+		const char* text
+	);
 
 private:
 	const float MEMORY_RECT_PADDING = 4.0f;
+
+	const float MEMORY_REGION_LABEL_FONT_SIZE = 20.0f;
+	const float MEMORY_REGION_LABEL_SPACING = 1.0f;
 
 private:
 	Font _font {};

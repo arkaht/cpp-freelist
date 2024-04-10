@@ -53,7 +53,7 @@ void Application::render()
 
 	//  Draw total memory rectangle
 	_total_memory_rect.width = _frame.width * 0.75f;
-	_total_memory_rect.height = _frame.height * 0.05f;
+	_total_memory_rect.height = _frame.height * 0.06f;
 	_total_memory_rect.x = _frame.width * 0.5f - _total_memory_rect.width * 0.5f;
 	_total_memory_rect.y = _frame.height * 0.5f - _total_memory_rect.height * 0.5f;
 	DrawRectangleRec( _total_memory_rect, LIGHTGRAY );
@@ -71,8 +71,11 @@ void Application::render()
 	int mem_offset = 0;
 	if ( !show_only_user_data )
 	{
-		Rectangle region = _create_memory_region_rect( 0, nodes_size );
+		const Rectangle region = _create_memory_region_rect( 0, nodes_size );
 		_draw_memory_region( region, nodes_size, font_size, spacing, BLUE );
+
+		_draw_memory_region_label( region, "Internal Size" );
+
 		mem_offset += nodes_size;
 	}
 
@@ -82,7 +85,7 @@ void Application::render()
 	FreelistNode* node = head;
 	while( node )
 	{
-		Rectangle region = _create_memory_region_rect( mem_offset + node->offset, node->size );
+		const Rectangle region = _create_memory_region_rect( mem_offset + node->offset, node->size );
 		_draw_memory_region( region, node->size, font_size, spacing, GREEN );
 
 		//  Draw head asterisk
@@ -105,6 +108,9 @@ void Application::render()
 		node = node->next;
 	}
 
+	const Rectangle region = _create_memory_region_rect( mem_offset, data_size );
+	_draw_memory_region_label( region, "User Size" );
+
 	//  Draw allocations
 	for ( int i = 0; i < _allocs.size(); i++ )
 	{
@@ -120,9 +126,9 @@ void Application::render()
 		TextFormat( "NODES: %i", index ), 
 		Vector2 {
 			_total_memory_rect.x,
-			_total_memory_rect.y,
+			_total_memory_rect.y + _total_memory_rect.height,
 		},
-		Vector2 { 0.0f, 1.0f },
+		Vector2 { 0.0f, 0.0f },
 		font_size,
 		spacing,
 		BLACK
@@ -132,6 +138,7 @@ void Application::render()
 void Application::allocate( size_t size )
 {
 	auto offset = _freelist.allocate( size );
+	if ( offset == -1 ) return;
 
 	Allocation alloc {};
 	alloc.data = _freelist.pointer_to_memory( offset );
@@ -197,5 +204,46 @@ void Application::_draw_memory_region( const Rectangle& region, uint32_t bytes, 
 		font_size,
 		spacing,
 		WHITE
+	);
+}
+
+void Application::_draw_memory_region_label( const Rectangle& region, const char* text )
+{
+	const float height_offset = 30.0f;
+	const float height = 10.0f;
+	const float thickness = 4.0f;
+
+	DrawRectangle(
+		region.x,
+		region.y - height_offset,
+		region.width,
+		thickness,
+		GRAY
+	);
+	DrawRectangle(
+		region.x,
+		region.y - height_offset,
+		thickness,
+		height,
+		GRAY
+	);
+	DrawRectangle(
+		region.x + region.width - thickness,
+		region.y - height_offset,
+		thickness,
+		height,
+		GRAY
+	);
+	
+	draw_text( 
+		text, 
+		Vector2 {
+			region.x + region.width * 0.5f, 
+			region.y - height_offset
+		},
+		Vector2 { 0.5f, 1.0f },
+		MEMORY_REGION_LABEL_FONT_SIZE,
+		MEMORY_REGION_LABEL_SPACING,
+		GRAY
 	);
 }
