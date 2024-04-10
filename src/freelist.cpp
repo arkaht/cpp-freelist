@@ -11,7 +11,8 @@ Freelist::Freelist( uint32_t data_size )
 	_data_size = data_size;
 
 	//  Maximum amount of nodes to allocate with the smallest possible size
-	_node_count = _data_size / sizeof( void* );
+	//  Division by 4 is kinda arbitrary here, we just don't need much allocated nodes for the example
+	_node_count = _data_size / ( sizeof( void* ) ) / 4;
 
 	//  Memory layout is: 
 	//  - Freelist nodes (Internal size) 
@@ -21,7 +22,12 @@ Freelist::Freelist( uint32_t data_size )
 	_internal_size = _total_size - _data_size;
 
 	//  Measure total memory size to allocate, can't wrap my head around the formula, probably too much tired
-	printf( "%d %d %d\n", (int)_data_size, _node_count, _total_size );
+	printf( 
+		"Freelist was initialized for a data size of %s, using at maximum %d nodes and for a total size of %s\n", 
+		utils::bytes_to_str( _data_size ), 
+		_node_count, 
+		utils::bytes_to_str( _total_size ) 
+	);
 
 	//  Allocating memory
 	_memory = malloc( _total_size );

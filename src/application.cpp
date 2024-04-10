@@ -5,7 +5,7 @@
 
 Application::Application( const Rectangle& frame )
 	: _frame( frame ), 
-	 _freelist( 1024 )
+	 _freelist( 2048 )
 {
 	_font = GetFontDefault();
 }
