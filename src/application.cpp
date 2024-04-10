@@ -12,23 +12,15 @@ Application::Application( const Rectangle& frame )
 
 void Application::update( float dt )
 {
-	if ( IsKeyPressed( KEY_W ) )
+	if ( IsKeyPressed( KEY_E ) )
 	{
 		show_only_user_data = !show_only_user_data;
 	}
-	if ( IsKeyPressed( KEY_D ) )
-	{
-		if ( _allocs.size() > 0 )
-		{
-			deallocate( 0 );
-		}
-	}
-	if ( IsKeyPressed( KEY_C ) )
+	else if ( IsKeyPressed( KEY_C ) )
 	{
 		clear();
 	}
-
-	if ( IsKeyPressed( KEY_H ) )
+	else if ( IsKeyPressed( KEY_H ) )
 	{
 		auto entity = allocate<ExpensiveEntity>();
 		if ( entity == nullptr ) 
@@ -60,14 +52,20 @@ void Application::update( float dt )
 		printf( "Allocated a new CheaperEntity!\n" );
 	}
 
+	int mem_offset = 0;
+	if ( !show_only_user_data )
+	{
+		mem_offset += _freelist.get_internal_size();
+	}
+
 	//  User click on allocations
 	for ( int i = 0; i < _allocs.size(); i++ )
 	{
 		const Allocation& alloc = _allocs[i];
 
-		Rectangle region = _create_memory_region_rect( alloc.offset, alloc.size );
+		Rectangle region = _create_memory_region_rect( mem_offset + alloc.offset, alloc.size );
 
-		//  Check click on allocation region to deallocate
+		//  Check click on allocation region to free
 		bool is_hovered = CheckCollisionPointRec( GetMousePosition(), region );
 		if ( is_hovered && IsMouseButtonPressed( MOUSE_BUTTON_LEFT ) )
 		{
@@ -92,7 +90,7 @@ void Application::render()
 
 	const int data_size = _freelist.get_data_size();
 	const int total_size = _freelist.get_total_size();
-	const int nodes_size = total_size - data_size;
+	const int internal_size = _freelist.get_internal_size();
 
 	_total_size = (float)( show_only_user_data ? data_size : total_size );
 
@@ -103,12 +101,12 @@ void Application::render()
 	int mem_offset = 0;
 	if ( !show_only_user_data )
 	{
-		const Rectangle region = _create_memory_region_rect( 0, nodes_size );
-		_draw_memory_region( region, utils::bytes_to_str( nodes_size ), font_size, spacing, BLUE );
+		const Rectangle region = _create_memory_region_rect( 0, internal_size );
+		_draw_memory_region( region, utils::bytes_to_str( internal_size ), font_size, spacing, BLUE );
 
 		_draw_memory_region_label( region, "Internal Size" );
 
-		mem_offset += nodes_size;
+		mem_offset += internal_size;
 	}
 
 	//  Draw freelist nodes
@@ -139,6 +137,7 @@ void Application::render()
 		_draw_memory_region( region, utils::bytes_to_str( alloc.size ), font_size, spacing, is_hovered ? PURPLE : VIOLET );
 	}
 
+	//  Draw nodes count
 	draw_text( 
 		TextFormat( "%i NODES", index ), 
 		Vector2 {
@@ -150,12 +149,35 @@ void Application::render()
 		spacing,
 		BLACK
 	);
+
+	//  Draw instructions
+	const int instructions_count = 5;
+	const char* instructions[instructions_count] {
+		"J: Allocate a CheaperEntity (64.00B)",
+		"H: Allocate an ExpensiveEntity (160.00B)",
+		"E: Toggle Internal Size visualisation",
+		"C: Clear the freelist",
+		"LMB: Click on allocated regions to free them",
+	};
+	Vector2 pos { 24.0f, _frame.height - 24.0f };
+	for ( int i = 0; i < instructions_count; i++ )
+	{
+		draw_text(
+			instructions[i],
+			pos,
+			Vector2 { 0.0f, 1.0f },
+			20.0f,
+			spacing,
+			GRAY
+		);
+		pos.y -= 20.0f;
+	}
 }
 
 int Application::allocate( uint32_t size )
 {
-	auto offset = _freelist.allocate( size );
-	if ( offset == -1 ) return -1;
+	uint32_t offset;
+	if ( !_freelist.allocate( size, offset ) ) return -1;
 
 	Allocation alloc {};
 	alloc.data = _freelist.pointer_to_memory( offset );
@@ -169,7 +191,7 @@ int Application::allocate( uint32_t size )
 void Application::deallocate( int id )
 {
 	const Allocation& alloc = _allocs.at( id );
-	_freelist.deallocate( alloc.offset, alloc.size );
+	_freelist.free( alloc.offset, alloc.size );
 	_allocs.erase( _allocs.begin() + id );
 }
 

@@ -18,13 +18,13 @@ public:
 
 	/*
 	 * Finds and allocates a data region for the given size.
-	 * Returns the offset in the user data memory or -1 if there was no available space.
+	 * Returns whenever the allocation was successful. If successful, it also sets the 'offset' variable to the allocated position.
 	 */
-	uint32_t allocate( uint32_t size );
+	bool allocate( uint32_t size, uint32_t& offset );
 	/*
-	 * Deallocate the data region at given offset and size.
+	 * Free the data region at given offset and size.
 	 */
-	void deallocate( uint32_t offset, uint32_t size );
+	void free( uint32_t offset, uint32_t size );
 	/*
 	 * Clear the freelist of all allocations and reset its nodes.
 	 */
@@ -37,8 +37,8 @@ public:
 	FreelistNode* head() const;
 
 	/*
-	 * Returns a pointer to the allocated memory given the offset, or nullptr if the offset is negative.
-	 * You should only pass in the offsets returned by the 'allocate' method, otherwise, use it at your own risks.
+	 * Returns a pointer to the allocated memory given the offset.
+	 * You should only pass in offsets returned by the 'allocate' method, otherwise, use it at your own risks.
 	 */
 	void* pointer_to_memory( uint32_t offset, bool add_internal_size = true ) const;
 
@@ -61,7 +61,7 @@ public:
 	int get_free_size() const;
 
 private:
-	FreelistNode* _new_node( uint32_t offset = 0, size_t size = 0 );
+	FreelistNode* _new_node( uint32_t offset = 0, uint32_t size = 0 );
 
 private:
 	uint32_t _data_size = 0;

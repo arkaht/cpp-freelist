@@ -40,11 +40,11 @@ Freelist::Freelist( uint32_t data_size )
 
 Freelist::~Freelist()
 {
-	free( _memory );
+	::free( _memory );
 	_memory = nullptr;
 }
 
-uint32_t Freelist::allocate( uint32_t size )
+bool Freelist::allocate( uint32_t size, uint32_t& offset )
 {
 	FreelistNode* previous = nullptr;
 	FreelistNode* node = _head;
@@ -62,19 +62,21 @@ uint32_t Freelist::allocate( uint32_t size )
 				_head = node->next;
 			}
 
-			int offset = node->offset;
+			offset = node->offset;
 
 			//  Invalidate node
 			node->offset = 0;
 			node->size = 0;
 			node->next = nullptr;
 
-			return offset;
+			return true;
 		}
 		else if ( node->size > size )
 		{
 			node->size -= size;
-			return node->offset + node->size;
+
+			offset = node->offset + node->size;
+			return true;
 		}
 
 		previous = node;
@@ -86,15 +88,15 @@ uint32_t Freelist::allocate( uint32_t size )
 		utils::bytes_to_str( size ), 
 		utils::bytes_to_str( get_free_size() ) 
 	);
-	return -1;
+	return false;
 }
 
-void Freelist::deallocate( uint32_t offset, uint32_t size )
+void Freelist::free( uint32_t offset, uint32_t size )
 {
 	//  Zero out memory
 	memset( pointer_to_memory( offset ), 0, size );
 
-	if ( !_head )
+	if ( _head == nullptr )
 	{
 		//  No head? It means the freelist is empty: directly assign it
 		_head = _new_node( offset, size );
@@ -186,7 +188,7 @@ void Freelist::clear()
 		node = next;
 	}
 
-	if ( !_head )
+	if ( _head == nullptr )
 	{
 		_head = _new_node( 0, _data_size );
 	}
@@ -198,8 +200,6 @@ void Freelist::clear()
 
 void* Freelist::pointer_to_memory( uint32_t offset, bool add_internal_size ) const
 {
-	if ( offset <= 0 ) return nullptr;
-
 	auto ptr = (char*)_memory;
 
 	if ( add_internal_size )
@@ -244,7 +244,7 @@ int Freelist::get_free_size() const
 	return bytes;
 }
 
-FreelistNode* Freelist::_new_node( uint32_t offset, size_t size )
+FreelistNode* Freelist::_new_node( uint32_t offset, uint32_t size )
 {
 	for ( int i = 0; i < _node_count; i++ )
 	{
