@@ -1,2 +1,0 @@
-C:\Projets\CPP\cpp-freelist\x64\Debug\raylib.dll
-C:\Projets\CPP\cpp-freelist\cpp-freelist\x64\Debug\cpp-free.DE1E8F8B.Up2Date
