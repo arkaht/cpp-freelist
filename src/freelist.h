@@ -2,31 +2,56 @@
 
 #include <cstdint>
 
+/*
+ * A node representing an un-reserved memory block inside the freelist linked list.
+ */
 struct FreelistNode
 {
-	uint32_t size = 0;
+	/*
+	 * Position of the node inside the pre-allocated memory
+	 */
 	uint32_t offset = 0;
+	/*
+	 * Size of the un-reserved memory block
+	 */
+	uint32_t size = 0;
 
+	/*
+	 * For linked list purposes, the next node.
+	 */
 	FreelistNode* next = nullptr;
 };
 
+/*
+ * A data structure used to reserve memory from a pre-allocated memory block helping to avoid
+ * intensive usage of dynamic memory allocation. Only one allocation is done at construction time.
+ * It uses a linked list of nodes to manage the un-reserved blocks and to merge them.
+ */
 class Freelist
 {
 public:
+	/*
+	 * Operates a dynamic memory allocation to initialize the pre-allocated memory block
+	 * for further usage.
+	 */
 	Freelist( uint32_t data_size );
+	/*
+	 * Frees the dynamic memory allocation.
+	 */
 	~Freelist();
 
 	/*
-	 * Finds and allocates a data region for the given size.
-	 * Returns whenever the allocation was successful. If successful, it also sets the 'offset' variable to the allocated position.
+	 * Finds and reserves a memory block of the given size.
+	 * Returns whenever the reservation was successful.
+	 * If successful, it also sets the 'offset' variable to the reserved position.
 	 */
-	bool allocate( uint32_t size, uint32_t& offset );
+	bool reserve( uint32_t size, uint32_t& offset );
 	/*
-	 * Free the data region at given offset and size.
+	 * Un-reserves the memory block at given offset and size.
 	 */
-	void free( uint32_t offset, uint32_t size );
+	void unreserve( uint32_t offset, uint32_t size );
 	/*
-	 * Clear the freelist of all allocations and reset its nodes.
+	 * Clears the freelist of all allocations and reset its nodes.
 	 */
 	void clear();
 
@@ -37,8 +62,9 @@ public:
 	FreelistNode* head() const;
 
 	/*
-	 * Returns a pointer to the allocated memory given the offset.
-	 * You should only pass in offsets returned by the 'allocate' method, otherwise, use it at your own risks.
+	 * Returns a pointer to the memory given the offset.
+	 * You should only pass in offsets returned by the 'reserve' method and that are not un-reserved.
+	 * If not, you may end up overriding memory reserved for something else, use it at your own risks.
 	 */
 	void* pointer_to_memory( uint32_t offset, bool add_internal_size = true ) const;
 
@@ -46,21 +72,24 @@ public:
 	 * Returns the total size the freelist has allocated, in bytes.
 	 * The total size is the sum of the internal size plus the user data size.
 	 */
-	int get_total_size() const;
+	uint32_t get_total_size() const;
 	/*
 	 * Returns the user data size, in bytes.
 	 */
-	int get_data_size() const;
+	uint32_t get_data_size() const;
 	/*
 	 * Returns the internal size used to contain the nodes, in bytes.
 	 */
-	int get_internal_size() const;
+	uint32_t get_internal_size() const;
 	/*
 	 * Returns the free space size, in bytes.
 	 */
-	int get_free_size() const;
+	uint32_t get_free_size() const;
 
 private:
+	/*
+	 * Finds and returns the first avaialble node and set it up with the given offset and size.
+	 */
 	FreelistNode* _new_node( uint32_t offset = 0, uint32_t size = 0 );
 
 private:

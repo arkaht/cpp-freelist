@@ -2,37 +2,37 @@
 
 using namespace std::chrono;
 
-void Benchmark::Start()
+void Benchmark::start()
 {
 	start_point = high_resolution_clock::now();
 }
 
-void Benchmark::Stop()
+void Benchmark::stop()
 {
 	end_point = high_resolution_clock::now();
 
-	auto start = time_point_cast<microseconds>(start_point).time_since_epoch().count();
-	auto end = time_point_cast<microseconds>(end_point).time_since_epoch().count();
+	auto start = time_point_cast<microseconds>( start_point ).time_since_epoch().count();
+	auto end = time_point_cast<microseconds>( end_point ).time_since_epoch().count();
 
-	time = end - start;
+	time = static_cast<int>( end - start );
 }
 
-int Benchmark::GetMicroSeconds()
+void Benchmark::reset()
+{
+	time = 0;
+}
+
+int Benchmark::get_micro_seconds() const
 {
 	return time;
 }
 
-int Benchmark::GetMilliseconds()
+int Benchmark::get_milliseconds() const
 {
-	return time / 1000.0f;
+	return time / 1000;
 }
 
-float Benchmark::GetSeconds() {
-
+float Benchmark::get_seconds() const
+{
 	return time / 1000000.0f;
-}
-
-void Benchmark::Reset()
-{
-	time = 0;
 }

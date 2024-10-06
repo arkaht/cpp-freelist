@@ -14,23 +14,26 @@ Freelist::Freelist( uint32_t data_size )
 	//  Division by 4 is kinda arbitrary here, we just don't need much allocated nodes for the example
 	_node_count = _data_size / ( sizeof( void* ) ) / 4;
 
+	//  Measure total memory size to allocate
 	//  Memory layout is: 
 	//  - Freelist nodes (Internal size) 
 	//  - User data (Data size)
 	int nodes_byte = sizeof( FreelistNode ) * _node_count;
-	_total_size = nodes_byte + _data_size;
-	_internal_size = _total_size - _data_size;
-
-	//  Measure total memory size to allocate, can't wrap my head around the formula, probably too much tired
-	printf( 
-		"Freelist was initialized for a data size of %s, using at maximum %d nodes and for a total size of %s\n", 
-		utils::bytes_to_str( _data_size ), 
-		_node_count, 
-		utils::bytes_to_str( _total_size ) 
-	);
+	_internal_size = nodes_byte;
+	_total_size = _internal_size + _data_size;
 
 	//  Allocating memory
 	_memory = malloc( _total_size );
+	if ( _memory == nullptr )
+	{
+		printf(
+			"Freelist failed to allocate memory for a data size of %s, using at maximum %d nodes and for a total size of %s\n",
+			utils::bytes_to_str( _data_size ),
+			_node_count,
+			utils::bytes_to_str( _total_size )
+		);
+		return;
+	}
 
 	//  Zero out memory
 	memset( _memory, 0, _total_size );
@@ -42,15 +45,22 @@ Freelist::Freelist( uint32_t data_size )
 	_head->offset = 0;
 	_head->size = _data_size;
 	_head->next = nullptr;
+
+	printf(
+		"Freelist was initialized for a data size of %s, using at maximum %d nodes and for a total size of %s\n",
+		utils::bytes_to_str( _data_size ),
+		_node_count,
+		utils::bytes_to_str( _total_size )
+	);
 }
 
 Freelist::~Freelist()
 {
-	::free( _memory );
+	free( _memory );
 	_memory = nullptr;
 }
 
-bool Freelist::allocate( uint32_t size, uint32_t& offset )
+bool Freelist::reserve( uint32_t size, uint32_t& offset )
 {
 	FreelistNode* previous = nullptr;
 	FreelistNode* node = _head;
@@ -97,7 +107,7 @@ bool Freelist::allocate( uint32_t size, uint32_t& offset )
 	return false;
 }
 
-void Freelist::free( uint32_t offset, uint32_t size )
+void Freelist::unreserve( uint32_t offset, uint32_t size )
 {
 	//  Zero out memory
 	memset( pointer_to_memory( offset ), 0, size );
@@ -221,24 +231,24 @@ FreelistNode* Freelist::head() const
 	return _head;
 }
 
-int Freelist::get_total_size() const
+uint32_t Freelist::get_total_size() const
 {
 	return _total_size;
 }
 
-int Freelist::get_data_size() const
+uint32_t Freelist::get_data_size() const
 {
 	return _data_size;
 }
 
-int Freelist::get_internal_size() const
+uint32_t Freelist::get_internal_size() const
 {
 	return _internal_size;
 }
 
-int Freelist::get_free_size() const
+uint32_t Freelist::get_free_size() const
 {
-	int bytes = 0;
+	uint32_t bytes = 0;
 
 	FreelistNode* node = _head;
 	while( node )

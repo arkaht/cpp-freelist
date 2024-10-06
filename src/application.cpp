@@ -12,34 +12,34 @@ Application::Application( const Rectangle& frame )
 
 	if ( ENABLE_BENCHMARKS )
 	{
-		Benchmark benchmark;
+		Benchmark benchmark {};
 
 		//  Benchmarking the new/delete operations
-		benchmark.Start();
+		benchmark.start();
 		for ( int i = 0; i < BENCHMARK_ITERATIONS; i++ )
 		{
 			auto entity = new ExpensiveEntity();
 			entity->is_alive = false;
 			delete entity;
 		}
-		benchmark.Stop();
-		printf( "Benchmark: new(): %.3f seconds for a total of %d iterations\n", benchmark.GetSeconds(), BENCHMARK_ITERATIONS );
+		benchmark.stop();
+		printf( "Benchmark: new(): %.3f seconds for a total of %d iterations\n", benchmark.get_seconds(), BENCHMARK_ITERATIONS );
 
 		//  Benchmarking the freelist allocate/free operations
-		benchmark.Start();
+		benchmark.start();
 		for ( int i = 0; i < BENCHMARK_ITERATIONS; i++ )
 		{
 			uint32_t size = sizeof( ExpensiveEntity );
 			uint32_t offset;
-			if ( _freelist.allocate( size, offset ) )
+			if ( _freelist.reserve( size, offset ) )
 			{
 				auto entity = (ExpensiveEntity*)_freelist.pointer_to_memory( offset );
 				entity->is_alive = false;
-				_freelist.free( offset, size );
+				_freelist.unreserve( offset, size );
 			}
 		}
-		benchmark.Stop();
-		printf( "Benchmark: freelist: %.3f seconds for a total of %d iterations\n", benchmark.GetSeconds(), BENCHMARK_ITERATIONS );
+		benchmark.stop();
+		printf( "Benchmark: freelist: %.3f seconds for a total of %d iterations\n", benchmark.get_seconds(), BENCHMARK_ITERATIONS );
 	}
 }
 
@@ -55,10 +55,10 @@ void Application::update( float dt )
 	}
 	else if ( IsKeyPressed( KEY_H ) )
 	{
-		auto entity = allocate<ExpensiveEntity>();
+		auto entity = reserve<ExpensiveEntity>();
 		if ( entity == nullptr ) 
 		{
-			printf( "Failed to allocate a new ExpensiveEntity!\n" );
+			printf( "Failed to reserve a new ExpensiveEntity!\n" );
 			return;
 		}
 
@@ -67,14 +67,14 @@ void Application::update( float dt )
 		entity->pos = { 10.0f, -5.0f };
 		entity->size = { 2.0f, 1.0f };
 
-		printf( "Allocated a new ExpensiveEntity!\n" );
+		printf( "Reserved a new ExpensiveEntity!\n" );
 	}
 	else if ( IsKeyPressed( KEY_J ) )
 	{
-		auto entity = allocate<CheaperEntity>();
+		auto entity = reserve<CheaperEntity>();
 		if ( entity == nullptr ) 
 		{
-			printf( "Failed to allocate a new CheaperEntity!\n" );
+			printf( "Failed to reserve a new CheaperEntity!\n" );
 			return;
 		}
 
@@ -82,7 +82,7 @@ void Application::update( float dt )
 		entity->pos = { 10.0f, -5.0f };
 		entity->size = { 2.0f, 1.0f };
 
-		printf( "Allocated a new CheaperEntity!\n" );
+		printf( "Reserved a new CheaperEntity!\n" );
 	}
 
 	int mem_offset = 0;
@@ -92,17 +92,24 @@ void Application::update( float dt )
 	}
 
 	//  User click on allocations
-	for ( int i = 0; i < _allocs.size(); i++ )
+	if ( IsMouseButtonPressed( MOUSE_BUTTON_LEFT ) )
 	{
-		const Allocation& alloc = _allocs[i];
+		const Vector2 mouse_pos = GetMousePosition();
 
-		Rectangle region = _create_memory_region_rect( mem_offset + alloc.offset, alloc.size );
-
-		//  Check click on allocation region to free
-		bool is_hovered = CheckCollisionPointRec( GetMousePosition(), region );
-		if ( is_hovered && IsMouseButtonPressed( MOUSE_BUTTON_LEFT ) )
+		for ( int i = 0; i < _reservations.size(); i++ )
 		{
-			deallocate( i );
+			const Reservation& reservation = _reservations[i];
+
+			const Rectangle region = _create_memory_region_rect(
+				mem_offset + reservation.offset,
+				reservation.size
+			);
+
+			//  Check click on reserved region to un-reserve
+			bool is_hovered = CheckCollisionPointRec( mouse_pos, region );
+			if ( !is_hovered ) continue;
+
+			unreserve( i );
 			break;
 		}
 	}
@@ -110,7 +117,7 @@ void Application::update( float dt )
 
 void Application::render()
 {
-	Font font = GetFontDefault();
+	const Font font = GetFontDefault();
 
 	ClearBackground( RAYWHITE );
 
@@ -128,7 +135,7 @@ void Application::render()
 	_total_size = (float)( show_only_user_data ? data_size : total_size );
 
 	//  Draw title text
-	draw_text( 
+	_draw_text( 
 		"FREELIST",
 		Vector2 {
 			_frame.width * 0.5f,
@@ -148,7 +155,13 @@ void Application::render()
 	if ( !show_only_user_data )
 	{
 		const Rectangle region = _create_memory_region_rect( 0, internal_size );
-		_draw_memory_region( region, utils::bytes_to_str( internal_size ), font_size, spacing, BLUE );
+		_draw_memory_region(
+			region,
+			utils::bytes_to_str( internal_size ),
+			font_size,
+			spacing,
+			BLUE
+		);
 
 		_draw_memory_region_label( region, "Internal Size" );
 
@@ -161,30 +174,50 @@ void Application::render()
 	FreelistNode* node = head;
 	while( node )
 	{
-		const Rectangle region = _create_memory_region_rect( mem_offset + node->offset, node->size );
-		const char* text = TextFormat( "%s%s", node == head ? "*" : "", utils::bytes_to_str( node->size ) );
+		const char* text = TextFormat(
+			"%s%s",
+			node == head ? "*" : "",
+			utils::bytes_to_str( node->size )
+		);
+
+		const Rectangle region = _create_memory_region_rect(
+			mem_offset + node->offset,
+			node->size
+		);
 		_draw_memory_region( region, text, font_size, spacing, GREEN );
 
 		index++;
 		node = node->next;
 	}
 
-	const Rectangle region = _create_memory_region_rect( mem_offset, data_size );
-	_draw_memory_region_label( region, "User Size" );
-
-	//  Draw allocations
-	for ( int i = 0; i < _allocs.size(); i++ )
+	//  Draw user memory region
 	{
-		const Allocation& alloc = _allocs[i];
+		const Rectangle region = _create_memory_region_rect( mem_offset, data_size );
+		_draw_memory_region_label( region, "User Size" );
+	}
 
-		Rectangle region = _create_memory_region_rect( mem_offset + alloc.offset, alloc.size );
+	//  Draw reservations
+	for ( int i = 0; i < _reservations.size(); i++ )
+	{
+		const Reservation& reservation = _reservations[i];
+
+		const Rectangle region = _create_memory_region_rect(
+			mem_offset + reservation.offset,
+			reservation.size
+		);
 
 		bool is_hovered = CheckCollisionPointRec( GetMousePosition(), region );
-		_draw_memory_region( region, utils::bytes_to_str( alloc.size ), font_size, spacing, is_hovered ? PURPLE : VIOLET );
+		_draw_memory_region(
+			region,
+			utils::bytes_to_str( reservation.size ),
+			font_size,
+			spacing,
+			is_hovered ? PURPLE : VIOLET
+		);
 	}
 
 	//  Draw nodes count
-	draw_text( 
+	_draw_text( 
 		TextFormat( "%i NODES", index ), 
 		Vector2 {
 			_total_memory_rect.x,
@@ -199,16 +232,16 @@ void Application::render()
 	//  Draw instructions
 	const int instructions_count = 5;
 	const char* instructions[instructions_count] {
-		"J: Allocate a CheaperEntity (64.00B)",
-		"H: Allocate an ExpensiveEntity (160.00B)",
+		"J: Reserve a CheaperEntity (64.00B)",
+		"H: Reserve an ExpensiveEntity (160.00B)",
 		"E: Toggle Internal Size visualisation",
 		"C: Clear the freelist",
-		"LMB: Click on allocated regions to free them",
+		"LMB: Click on reserved regions to free them",
 	};
 	Vector2 pos { 24.0f, _frame.height - 24.0f };
 	for ( int i = 0; i < instructions_count; i++ )
 	{
-		draw_text(
+		_draw_text(
 			instructions[i],
 			pos,
 			Vector2 { 0.0f, 1.0f },
@@ -220,34 +253,42 @@ void Application::render()
 	}
 }
 
-int Application::allocate( uint32_t size )
+int Application::reserve( uint32_t size )
 {
-	uint32_t offset;
-	if ( !_freelist.allocate( size, offset ) ) return -1;
+	uint32_t offset = 0;
+	if ( !_freelist.reserve( size, offset ) ) return -1;
 
-	Allocation alloc {};
-	alloc.data = _freelist.pointer_to_memory( offset );
-	alloc.offset = offset;
-	alloc.size = size;
-	_allocs.push_back( alloc );
+	Reservation reservation {};
+	reservation.data = _freelist.pointer_to_memory( offset );
+	reservation.offset = offset;
+	reservation.size = size;
+	_reservations.push_back( reservation );
 
-	return (int)_allocs.size() - 1;
+	return (int)_reservations.size() - 1;
 }
 
-void Application::deallocate( int id )
+void Application::unreserve( int id )
 {
-	const Allocation& alloc = _allocs.at( id );
-	_freelist.free( alloc.offset, alloc.size );
-	_allocs.erase( _allocs.begin() + id );
+	const Reservation& reservation = _reservations.at( id );
+	_freelist.unreserve( reservation.offset, reservation.size );
+	_reservations.erase( _reservations.begin() + id );
 }
 
 void Application::clear()
 {
 	_freelist.clear();
-	_allocs.clear();
+	_reservations.clear();
 }
 
-void Application::draw_text( const char* text, Vector2 pos, Vector2 origin, float font_size, float spacing, Color color, float min_width )
+void Application::_draw_text( 
+	const char* text,
+	const Vector2& pos,
+	const Vector2& origin,
+	float font_size,
+	float spacing,
+	const Color& color,
+	float min_width
+) const
 {
 	Vector2 text_size = MeasureTextEx( _font, text, font_size, spacing );
 
@@ -267,24 +308,30 @@ void Application::draw_text( const char* text, Vector2 pos, Vector2 origin, floa
 	);
 }
 
-Rectangle Application::_create_memory_region_rect( uint32_t offset, uint32_t bytes ) const
+Rectangle Application::_create_memory_region_rect( uint32_t offset, uint32_t size ) const
 {
 	Rectangle memory_rect( _total_memory_rect );
 	memory_rect.x += MEMORY_RECT_PADDING + offset / _total_size * _total_memory_rect.width;
 	memory_rect.y += MEMORY_RECT_PADDING;
-	memory_rect.width = bytes / _total_size * _total_memory_rect.width;
+	memory_rect.width = size / _total_size * _total_memory_rect.width;
 	memory_rect.width -= MEMORY_RECT_PADDING * 2.0f;
 	memory_rect.height -= MEMORY_RECT_PADDING * 2.0f;
 	return memory_rect;
 }
 
-void Application::_draw_memory_region( const Rectangle& region, const char* text, float font_size, float spacing, Color color )
+void Application::_draw_memory_region(
+	const Rectangle& region,
+	const char* text,
+	float font_size,
+	float spacing,
+	const Color& color
+) const
 {
 	//  Draw memory region
 	DrawRectangleRec( region, color );
 
 	//  Draw text
-	draw_text(
+	_draw_text(
 		text,
 		Vector2 {
 			region.x + region.width * 0.5f,
@@ -298,12 +345,13 @@ void Application::_draw_memory_region( const Rectangle& region, const char* text
 	);
 }
 
-void Application::_draw_memory_region_label( const Rectangle& region, const char* text )
+void Application::_draw_memory_region_label( const Rectangle& region, const char* text ) const
 {
 	const int height_offset = 30;
 	const int height = 10;
 	const int thickness = 4;
 
+	//  Draw top bar
 	DrawRectangle(
 		(int)region.x,
 		(int)region.y - height_offset,
@@ -311,6 +359,7 @@ void Application::_draw_memory_region_label( const Rectangle& region, const char
 		thickness,
 		GRAY
 	);
+	//  Draw left bar
 	DrawRectangle(
 		(int)region.x,
 		(int)region.y - height_offset,
@@ -318,6 +367,7 @@ void Application::_draw_memory_region_label( const Rectangle& region, const char
 		height,
 		GRAY
 	);
+	//  Draw right bar
 	DrawRectangle(
 		(int)region.x + (int)region.width - thickness,
 		(int)region.y - height_offset,
@@ -326,7 +376,7 @@ void Application::_draw_memory_region_label( const Rectangle& region, const char
 		GRAY
 	);
 	
-	draw_text( 
+	_draw_text( 
 		text, 
 		Vector2 {
 			region.x + region.width * 0.5f, 

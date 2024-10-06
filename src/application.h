@@ -8,30 +8,30 @@
 
 struct ExpensiveEntity
 {
-	std::string name;
-	std::vector<std::string> tags;
-	std::vector<std::string> useless1;
-	std::vector<std::string> useless2;
+	std::string name = "ExpensiveEntity";
+	std::vector<std::string> tags {};
+	std::vector<std::string> useless1 {};
+	std::vector<std::string> useless2 {};
 
-	Vector2 pos;
-	Vector2 size;
-	Color color;
+	Vector2 pos {};
+	Vector2 size {};
+	Color color = WHITE;
 
-	bool is_alive;
+	bool is_alive = true;
 };
 
 struct CheaperEntity
 {
-	std::string name;
+	std::string name = "CheaperEntity";
 
-	Vector2 pos;
-	Vector2 size;
-	Color color;
+	Vector2 pos {};
+	Vector2 size {};
+	Color color = WHITE;
 
-	bool is_alive;
+	bool is_alive = true;
 };
 
-struct Allocation
+struct Reservation
 {
 	uint32_t size = 0;
 	uint32_t offset = 0;
@@ -47,35 +47,40 @@ public:
 	void render();
 
 	template <typename T>
-	T* allocate()
+	T* reserve()
 	{
-		int id = allocate( sizeof( T ) );
+		int id = reserve( sizeof( T ) );
 		if ( id == -1 ) return nullptr;
 
-		return (T*)_allocs[id].data;
+		return (T*)_reservations[id].data;
 	}
-	int allocate( uint32_t size );
-	void deallocate( int id );
+	int reserve( uint32_t size );
+	void unreserve( int id );
 	void clear();
-
-	void draw_text( const char* text, Vector2 pos, Vector2 origin, float font_size, float spacing, Color color, float min_width = -1 );
 
 public:
 	bool show_only_user_data = false;
 
 private:
-	Rectangle _create_memory_region_rect( uint32_t offset, uint32_t bytes ) const;
+	void _draw_text(
+		const char* text,
+		const Vector2& pos,
+		const Vector2& origin,
+		float font_size,
+		float spacing,
+		const Color& color,
+		float min_width = -1
+	) const;
+
+	Rectangle _create_memory_region_rect( uint32_t offset, uint32_t size ) const;
 	void _draw_memory_region( 
 		const Rectangle& region, 
 		const char* text, 
 		float font_size,
 		float spacing,
-		Color color
-	);
-	void _draw_memory_region_label(
-		const Rectangle& region,
-		const char* text
-	);
+		const Color& color
+	) const;
+	void _draw_memory_region_label( const Rectangle& region, const char* text ) const;
 
 private:
 	const bool  ENABLE_BENCHMARKS = false;
@@ -90,7 +95,7 @@ private:
 	Font _font {};
 	Rectangle _frame {};
 
-	std::vector<Allocation> _allocs;
+	std::vector<Reservation> _reservations {};
 
 	Rectangle _total_memory_rect {};
 	float _total_size = 0.0f;
